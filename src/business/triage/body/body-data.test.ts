@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { departments } from '../mock-data'
-import { regionById, regions, regionsFor, symptoms, symptomsOf, WHOLE_BODY } from './body-data'
-import { bodyParts } from './body-parts'
+import { regionById, regions, symptoms, symptomsOf } from './body-data'
+import { FACE_REGIONS } from './face-mesh'
 
 describe('body data', () => {
   it('every symptom points at a known region and department', () => {
@@ -13,26 +13,12 @@ describe('body data', () => {
     }
   })
 
-  it.each(['male', 'female'] as const)('%s: every region has a mesh, every mesh is a region, every symptom sits in a region of that sex', (sex) => {
-    const meshRegions = new Set(bodyParts(sex).map(p => p.region))
-    for (const region of regionsFor(sex)) {
-      if (region.id !== WHOLE_BODY) {
-        expect(meshRegions.has(region.id), region.id).toBe(true)
+  it('regions match the 3D face regions, each with concerns for both sexes', () => {
+    expect(regions.map(r => r.id).sort()).toEqual([...FACE_REGIONS].sort())
+    for (const sex of ['male', 'female'] as const) {
+      for (const region of regions) {
+        expect(symptomsOf(region.id, sex).length, `${sex} ${region.id}`).toBeGreaterThan(0)
       }
-    }
-    // 部位粒度跟文档走:每个部位都有诉求;诉求不能挂在该性别看不到的部位上
-    for (const region of regionsFor(sex)) {
-      expect(symptomsOf(region.id, sex).length, region.id).toBeGreaterThan(0)
-    }
-    for (const symptom of symptoms.filter(s => s.sex === undefined || s.sex === sex)) {
-      expect(regionsFor(sex).some(r => r.id === symptom.regionId), symptom.id).toBe(true)
-    }
-    const allowed = new Set(regionsFor(sex).map(r => r.id))
-    for (const id of meshRegions) {
-      if (id === undefined) {
-        continue
-      }
-      expect(allowed.has(id), id).toBe(true)
     }
   })
 

@@ -1,5 +1,5 @@
 import type { Sex, Symptom } from '../types'
-import type { PointerAt } from './body-scene'
+import type { PointerAt } from './face-scene'
 
 import { Button } from '@gedatou/cadenza-ui'
 import { IconRefresh } from '@tabler/icons-react'
@@ -9,13 +9,13 @@ import { cn } from '@/lib/utils'
 
 import { IconBubble } from '../icon-bubble'
 
-import { regionById, symptomById, symptomsOf, WHOLE_BODY } from './body-data'
-import { BodyScene } from './body-scene'
+import { regionById, symptomById, symptomsOf } from './body-data'
+import { FaceScene } from './face-scene'
 import { RegionList } from './region-list'
 
 const TOOLTIP_WIDTH = 150
 
-const MODES = [['3d', '3D 人体'], ['list', '部位列表']] as const
+const MODES = [['3d', '3D 面部'], ['list', '部位列表']] as const
 
 function hasWebGL(): boolean {
   try {
@@ -37,7 +37,7 @@ interface BodyPanelProps {
   onReset: () => void
 }
 
-// 左栏:3D 人体(或 2D 列表)+ 当前部位的症状选择。只管「选」,发送与对话在页面层。
+// 左栏:3D 人脸(或 2D 列表)+ 当前部位的症状选择。只管「选」,发送与对话在页面层。
 // 视角、hover、3D/列表 这些面板内状态靠页面换 key 重挂来重置(见 TriagePage.resetBody)。
 export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActiveChange: setActive, onReset }: BodyPanelProps) {
   const [mode, setMode] = useState<'3d' | 'list'>(() => (hasWebGL() ? '3d' : 'list'))
@@ -118,28 +118,20 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActive
         {mode === '3d'
           ? (
               <>
-                <BodyScene
-                  sex={sex}
+                <FaceScene
                   hovered={hover?.region ?? null}
                   active={active}
                   marked={marked}
                   onHover={(region, at) => setHover(region !== null && at !== undefined ? { region, at } : null)}
-                  onSelect={(region, at) => {
+                  onSelect={(region) => {
+                    // 选中后底部诉求区展开、画面会重新取景,提示框留在原位会指错地方;部位名底部已经有了
                     setActive(region)
-                    setHover({ region, at })
+                    setHover(null)
                   }}
                 />
                 <p className='pointer-events-none absolute top-2 left-0 w-full text-center text-xs text-muted-foreground'>
                   拖动旋转 · 滚轮缩放 · 点击部位选择诉求
                 </p>
-                <Button
-                  size='sm'
-                  variant={active === WHOLE_BODY ? 'default' : 'outline'}
-                  className='absolute bottom-3 left-3 rounded-full bg-card'
-                  onClick={() => setActive(WHOLE_BODY)}
-                >
-                  全身 / 其他
-                </Button>
                 {tooltip && hover && (
                   <div
                     className='pointer-events-none absolute z-10 rounded-md bg-popover px-2.5 py-1.5 text-popover-foreground shadow-md ring-1 ring-foreground/10'
@@ -157,7 +149,6 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActive
             )
           : (
               <RegionList
-                sex={sex}
                 active={active}
                 marked={marked}
                 onSelect={setActive}
@@ -165,7 +156,8 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActive
             )}
       </div>
 
-      <section className='flex max-h-[35%] shrink-0 flex-col gap-3 overflow-y-auto border-t bg-background p-4'>
+      {/* 固定高度:内容多少都不改变上面画布的尺寸,否则每次点选都会触发重新取景(缩放) */}
+      <section className='flex h-[35%] shrink-0 flex-col gap-3 overflow-y-auto border-t bg-background p-4'>
         {activeRegion
           ? (
               <>
@@ -173,7 +165,7 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActive
                   <span className='font-semibold'>{activeRegion.common}</span>
                   <span className='text-xs text-muted-foreground'>{activeRegion.formal}</span>
                 </h3>
-                {/* 诉求只收知识库覆盖的(concerns.md),有的部位暂时一条都没有 */}
+                {/* 诉求只收知识库覆盖的(concerns.md) */}
                 <div className='flex flex-wrap gap-2'>
                   {activeSymptoms.map(symptom => (
                     <Button
@@ -189,7 +181,7 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActive
                 </div>
               </>
             )
-          : <p className='text-sm text-muted-foreground'>点一下人体上想改善的地方,或者直接在右边跟小美说</p>}
+          : <p className='text-sm text-muted-foreground'>点一下脸上想改善的地方,或者直接在右边跟小美说</p>}
       </section>
     </div>
   )

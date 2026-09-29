@@ -26,4 +26,15 @@ describe('parseConcerns', () => {
     expect(() => parseConcerns(SAMPLE.replace('| embolism |', '| spots |'))).toThrow(/重复/)
     expect(() => parseConcerns(SAMPLE.replace('(face)', ''))).toThrow(/## 部位名 \(编号\)/)
   })
+
+  it('expands a row to every sub-region in the 部位 column', () => {
+    const md = `## 脸 (face)
+
+| 编号 | 诉求 | 部位 | 门诊 | 标签 | 性别 | 危急提示 |
+|---|---|---|---|---|---|---|
+| acne | 痤疮 | forehead、cheek | general | 粉刺 | | |
+`
+    expect(parseConcerns(md).map(s => [s.id, s.regionId])).toEqual([['acne.forehead', 'forehead'], ['acne.cheek', 'cheek']])
+    expect(() => parseConcerns(md.replace('forehead、cheek', ''))).toThrow(/至少要填一个部位/)
+  })
 })

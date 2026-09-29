@@ -32,13 +32,11 @@ export interface DoctorWithSlots {
 
 export type Sex = 'male' | 'female'
 
-// 人体图上可点的部位。左右成对的器官共用一个 id(分诊不区分左右)。
+// 3D 人脸上可点的部位。左右成对的共用一个 id(分诊不区分左右)。
 export interface BodyRegion {
   id: string
   common: string // 俗称,hover 主文案
   formal: string // 专业名称
-  group: '头颈' | '躯干' | '四肢' | '全身'
-  sex?: Sex // 不填 = 男女都有
 }
 
 export interface Symptom {
