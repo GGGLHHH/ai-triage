@@ -9,6 +9,7 @@ export type ToolCallPart = ToolRendererProps['part']
 export interface MarkInput { regionIds?: string[], symptomIds?: string[] }
 export interface EmergencyInput { reason?: string }
 export interface RecommendInput { departmentIds?: string[], reason?: string }
+export interface KnowledgeInput { query?: string }
 export interface SummaryInput { chiefComplaint?: string, presentIllness?: string, pastHistory?: string, riskFlags?: string }
 
 // 参数还在流式输出时 input 为空,用残缺 JSON 兜底;解析不了就当还没有。

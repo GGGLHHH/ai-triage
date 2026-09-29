@@ -1,4 +1,4 @@
-import type { EmergencyInput, MarkInput, RecommendInput, SummaryInput, ToolCallPart } from './tool-inputs'
+import type { EmergencyInput, KnowledgeInput, MarkInput, RecommendInput, SummaryInput, ToolCallPart } from './tool-inputs'
 
 import { Badge } from '@gedatou/cadenza-ui'
 
@@ -96,5 +96,17 @@ export function SummaryCard({ part }: { part: ToolCallPart }) {
         </dl>
       </CardContent>
     </Card>
+  )
+}
+
+export function KnowledgeCard({ part }: { part: ToolCallPart }) {
+  const { query } = inputOf<KnowledgeInput>(part)
+  return (
+    <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
+      <span>查阅科室资料</span>
+      {query !== undefined && (
+        <Badge variant='secondary'>{query}</Badge>
+      )}
+    </div>
   )
 }

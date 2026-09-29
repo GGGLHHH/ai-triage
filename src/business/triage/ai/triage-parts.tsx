@@ -5,13 +5,14 @@ import type { ToolCallPart } from './tool-inputs'
 import { isThinkingComplete, Markdown, Reasoning } from '@gedatou/cadenza-ai'
 
 import { TOOL } from './prompt'
-import { EmergencyCard, MarkBodyCard, RecommendCard, SummaryCard } from './tool-cards'
+import { EmergencyCard, KnowledgeCard, MarkBodyCard, RecommendCard, SummaryCard } from './tool-cards'
 
 const CARDS: Partial<Record<string, (props: { part: ToolCallPart }) => ReactNode>> = {
   [TOOL.markBody]: MarkBodyCard,
   [TOOL.emergency]: EmergencyCard,
   [TOOL.recommend]: RecommendCard,
   [TOOL.summary]: SummaryCard,
+  [TOOL.knowledge]: KnowledgeCard,
 }
 
 // 代替 TranscriptParts:它会把连续 ≥2 个工具调用折成「Ran N tools」,急诊卡/科室卡/摘要会被藏起来。

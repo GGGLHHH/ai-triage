@@ -16,7 +16,10 @@
     "fix": "eslint --fix",
     "tsc": "tsc --noEmit",
     "check": "pnpm run fix && pnpm run tsc && pnpm run test",
-    "test": "vitest run"
+    "test": "vitest run",
+    "kb:up": "docker compose up -d --wait",
+    "kb:ingest": "node --env-file-if-exists=.env scripts/kb-ingest.ts",
+    "kb:down": "docker compose stop"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -52,6 +55,7 @@
     "lucide-react": "^1.48.0",
     "motion": "^13.4.4",
     "next-themes": "^0.4.6",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.3.0",

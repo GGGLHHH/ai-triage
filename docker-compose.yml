@@ -1,0 +1,24 @@
+# 向量知识库:pgvector 存向量。向量由云端 bge-m3 计算(硅基流动,见 .env 的 KB_EMBED_*),本机不跑模型。
+# 端口避开常用的 5432,可用 KB_DB_PORT 覆盖;只绑本机。
+# `pnpm kb:up` 起库,`pnpm kb:ingest` 把 knowledge/*.md 入库。
+name: ai-triage
+
+services:
+  kb-db:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: kb
+      POSTGRES_PASSWORD: kb
+      POSTGRES_DB: kb
+    ports:
+      - 127.0.0.1:${KB_DB_PORT:-5493}:5432
+    volumes:
+      - kb-db:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U kb -d kb]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  kb-db:
