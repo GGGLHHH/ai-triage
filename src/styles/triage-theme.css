@@ -1,0 +1,75 @@
+/* 预分诊页的院方配色 —— 照南山医院小程序:品牌蓝、浅蓝灰底、白卡片、大圆角。
+
+   只在 triage-theme 里生效,不动 :root。tokens.css 讲过为什么不在全局复制一份
+   cadenza 的 token:那样会把库的取值静默压住。这里是另一回事 —— 一个页面有意换一套
+   院方配色,范围写在类名上,别的页面照旧跟着库走。
+
+   shadcn 的 @theme inline 把 bg-primary 等工具类直接编译成 var(--primary),所以在
+   这个作用域里改 --primary,按钮、焦点环、发送键都会跟着变,不用改 vendored 组件。
+   弹层走 portal、挂在作用域外,保持库的中性色 —— toast 本来就该和页面分开。
+
+   写成 @utility 而不是裸类:Tailwind 与 eslint 的 no-unknown-classes 都认得它,暗色走
+   项目自己的 dark 变体。变量声明在这个元素上,靠继承压过 :root,与层级无关。 */
+@utility triage-theme {
+  --radius: 0.875rem;
+
+  --background: oklch(0.976 0.006 265); /* #F4F6FB 浅蓝灰底 */
+  --foreground: oklch(0.21 0.02 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.02 265);
+
+  --primary: oklch(0.575 0.2 268); /* #4A6CF7 品牌蓝 */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.955 0.025 270); /* 浅蓝底:选中态、标签 */
+  --secondary-foreground: oklch(0.47 0.19 268);
+  --accent: oklch(0.955 0.025 270);
+  --accent-foreground: oklch(0.47 0.19 268);
+  --muted: oklch(0.965 0.008 265);
+  --muted-foreground: oklch(0.58 0.02 265); /* 副标题灰 */
+
+  --border: oklch(0.925 0.012 265);
+  --input: oklch(0.905 0.015 265);
+  --ring: oklch(0.575 0.2 268);
+
+  /* 卡片投影:很淡的蓝灰,不用纯黑 */
+  --triage-shadow: 0 1px 2px oklch(0.5 0.05 265 / 6%), 0 4px 16px oklch(0.5 0.08 265 / 6%);
+
+  /* 图标圆底(IconBubble):小程序宫格里蓝、橙、紫、绿、红几种浅底 */
+  --triage-tone-blue: oklch(0.95 0.03 265);
+  --triage-tone-orange: oklch(0.96 0.035 70);
+  --triage-tone-violet: oklch(0.95 0.035 300);
+  --triage-tone-green: oklch(0.96 0.035 165);
+  --triage-tone-rose: oklch(0.95 0.03 15);
+
+  @variant dark {
+    --background: oklch(0.17 0.015 265);
+    --foreground: oklch(0.96 0.005 265);
+    --card: oklch(0.22 0.02 265);
+    --card-foreground: oklch(0.96 0.005 265);
+    --popover: oklch(0.22 0.02 265);
+    --popover-foreground: oklch(0.96 0.005 265);
+
+    --primary: oklch(0.68 0.17 268);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.3 0.05 270);
+    --secondary-foreground: oklch(0.85 0.08 268);
+    --accent: oklch(0.3 0.05 270);
+    --accent-foreground: oklch(0.85 0.08 268);
+    --muted: oklch(0.26 0.02 265);
+    --muted-foreground: oklch(0.72 0.02 265);
+
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.68 0.17 268);
+
+    --triage-shadow: 0 1px 2px oklch(0 0 0 / 30%), 0 4px 16px oklch(0 0 0 / 25%);
+
+    --triage-tone-blue: oklch(0.32 0.06 265);
+    --triage-tone-orange: oklch(0.33 0.06 70);
+    --triage-tone-violet: oklch(0.32 0.06 300);
+    --triage-tone-green: oklch(0.32 0.05 165);
+    --triage-tone-rose: oklch(0.32 0.06 15);
+  }
+}

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { doctorsWithSlots } from './engine'
+import { IconBubble } from './icon-bubble'
 
 const DAY_LABELS = ['今天', '明天', '后天']
 const PERIOD_LABELS: Record<Slot['period'], string> = { am: '上午', pm: '下午', night: '晚上' }
@@ -34,7 +35,9 @@ function SlotBadge({ department, doctor, slot }: SlotBadgeProps) {
   return (
     <Badge
       variant={full ? 'secondary' : 'outline'}
-      className='cursor-pointer hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-secondary'
+      className={full
+        ? 'cursor-not-allowed text-muted-foreground opacity-70'
+        : 'cursor-pointer border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground'}
       render={(
         <button
           type='button'
@@ -52,9 +55,16 @@ export function DepartmentCard({ match }: { match: DepartmentMatch }) {
   const { department, hits } = match
 
   return (
-    <Card size='sm'>
-      <CardHeader>
-        <CardTitle>{department.name}</CardTitle>
+    <Card
+      size='sm'
+      className='shadow-(--triage-shadow) ring-border'
+    >
+      <CardHeader className='grid-cols-[auto_1fr] gap-x-3'>
+        <IconBubble
+          icon='i-fluent-color-building-people-24'
+          className='row-span-2'
+        />
+        <CardTitle className='self-end text-base font-semibold'>{department.name}</CardTitle>
         <CardDescription>{department.intro}</CardDescription>
         <div className='flex flex-wrap gap-1'>
           {hits.map(hit => (
@@ -73,9 +83,13 @@ export function DepartmentCard({ match }: { match: DepartmentMatch }) {
             key={doctor.id}
             className='flex flex-col gap-1.5 border-t pt-3 text-sm'
           >
-            <div>
-              <span className='font-medium'>{doctor.name}</span>
-              <span className='ml-2 text-muted-foreground'>{doctor.title}</span>
+            <div className='flex items-center gap-2'>
+              <IconBubble
+                icon='i-fluent-color-person-available-24'
+                size='sm'
+              />
+              <span className='font-semibold'>{doctor.name}</span>
+              <span className='text-xs text-muted-foreground'>{doctor.title}</span>
             </div>
             <div className='text-xs text-muted-foreground'>{`擅长:${doctor.specialty}`}</div>
             <div className='flex flex-wrap gap-1.5'>

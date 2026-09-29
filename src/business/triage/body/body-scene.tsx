@@ -9,9 +9,9 @@ import { useMemo, useRef } from 'react'
 import { bodyParts } from './body-parts'
 
 const SKIN = '#f7c9a8'
-const HOVER = '#fdba74'
-const MARKED = '#7dd3fc'
-const ACTIVE = '#fb923c'
+const HOVER = '#c7d2fe' // 品牌蓝系:悬停最浅
+const MARKED = '#8ea5fb' // 已选 / AI 标出
+const ACTIVE = '#4a6cf7' // 当前部位 = 品牌蓝
 const OUTLINE = '#8a5a44'
 
 // 拖动旋转松手时也会触发 click。不能用 R3F 的 e.delta 判断:OrbitControls 捕获了指针,

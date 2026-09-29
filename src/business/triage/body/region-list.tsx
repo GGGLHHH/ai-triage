@@ -28,7 +28,7 @@ export function RegionList({ sex, active, marked, onSelect }: {
               <Button
                 key={region.id}
                 variant={region.id === active ? 'default' : marked.has(region.id) ? 'secondary' : 'outline'}
-                className='h-auto flex-col gap-0 py-2'
+                className='h-auto flex-col gap-0 rounded-xl py-2'
                 onClick={() => onSelect(region.id)}
               >
                 <span>{region.common}</span>

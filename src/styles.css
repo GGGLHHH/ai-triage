@@ -17,6 +17,8 @@
 @import './styles/tokens.css';
 @import './styles/theme.css';
 @import './styles/base.css';
+/* 预分诊页的院方配色,只在 .triage-theme 作用域内生效 */
+@import './styles/triage-theme.css';
 
 @custom-variant dark (&:is(.dark *));
 

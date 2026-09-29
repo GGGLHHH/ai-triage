@@ -1,5 +1,6 @@
-import type { Sex, Symptom } from '#/business/triage/types'
+import type { BubbleTone } from '#/business/triage/icon-bubble'
 
+import type { Sex, Symptom } from '#/business/triage/types'
 import {
   Composer,
   ComposerSubmit,
@@ -14,16 +15,24 @@ import {
   TranscriptProvider,
   useChat,
 } from '@gedatou/cadenza-ai'
+
 import { Badge, Button, MessageScrollerButton } from '@gedatou/cadenza-ui'
+import { IconMessagePlus } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 
 import { aiMarkedRegions } from '#/business/triage/ai/tool-inputs'
 import { TriageParts } from '#/business/triage/ai/triage-parts'
 import { regionById, symptomById } from '#/business/triage/body/body-data'
 import { BodyPanel } from '#/business/triage/body/body-panel'
+import { IconBubble } from '#/business/triage/icon-bubble'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-const SUGGESTIONS = ['脸上长了好多斑,越来越明显', '头发越来越少,发际线也高了', '有狐臭,夏天特别尴尬']
+// 空对话时的快捷入口,排成小程序首页那种宫格卡片:标题 + 副标题 + 彩色图标。点了发的是 text
+const SUGGESTIONS: { text: string, title: string, sub: string, icon: string, tone: BubbleTone }[] = [
+  { text: '脸上长了好多斑,越来越明显', title: '脸上长斑', sub: '越来越明显', icon: 'i-fluent-color-star-24', tone: 'orange' },
+  { text: '头发越来越少,发际线也高了', title: '头发稀少', sub: '发际线变高了', icon: 'i-fluent-color-person-starburst-24', tone: 'violet' },
+  { text: '有狐臭,夏天特别尴尬', title: '腋下异味', sub: '夏天特别尴尬', icon: 'i-fluent-color-heart-24', tone: 'green' },
+]
 
 const SEX_LABEL: Record<Sex, string> = { female: '女', male: '男' }
 
@@ -92,8 +101,8 @@ export function TriagePage() {
   }
 
   return (
-    <div className='flex h-svh bg-background'>
-      <aside className='w-100 shrink-0 border-r'>
+    <div className='flex h-svh bg-background text-foreground triage-theme'>
+      <aside className='w-100 shrink-0 border-r bg-card'>
         <BodyPanel
           key={bodyKey}
           sex={sex}
@@ -108,16 +117,23 @@ export function TriagePage() {
       </aside>
 
       <main className='flex min-w-0 flex-1 flex-col'>
-        <header className='flex h-12 shrink-0 items-center gap-3 border-b px-4'>
-          <h1 className='font-medium'>医疗美容科 · AI 预分诊</h1>
-          <span className='text-xs text-muted-foreground'>仅供就诊参考,不作为诊断依据</span>
-          <Button
-            className='ml-auto'
+        <header className='flex h-14 shrink-0 items-center gap-3 border-b bg-card px-5'>
+          <IconBubble
+            icon='i-fluent-color-bot-sparkle-24'
             size='sm'
-            variant='ghost'
+          />
+          <div className='flex flex-col'>
+            <h1 className='leading-tight font-semibold'>医疗美容科 · AI 预分诊</h1>
+            <span className='text-xs text-muted-foreground'>仅供就诊参考,不作为诊断依据</span>
+          </div>
+          <Button
+            className='ml-auto rounded-full'
+            size='sm'
+            variant='outline'
             disabled={chat.messages.length === 0}
             onClick={restart}
           >
+            <IconMessagePlus />
             新对话
           </Button>
         </header>
@@ -135,18 +151,32 @@ export function TriagePage() {
             >
               {chat.messages.length === 0 && (
                 <TranscriptEmpty>
-                  <div className='flex flex-col items-center gap-3'>
-                    <p>您好,我是小美。想改善哪里?可以直接说,也可以在左边人体上点。</p>
-                    <div className='flex flex-wrap justify-center gap-2'>
+                  <div className='flex w-full max-w-2xl flex-col items-center gap-6 px-4'>
+                    <div className='flex flex-col items-center gap-2 text-center'>
+                      <IconBubble
+                        icon='i-fluent-color-bot-sparkle-24'
+                        size='lg'
+                      />
+                      <p className='text-lg font-semibold text-foreground'>您好,我是小美</p>
+                      <p className='text-sm text-muted-foreground'>想改善哪里?可以直接说,也可以在左边人体上点</p>
+                    </div>
+                    <div className='grid w-full grid-cols-3 gap-3'>
                       {SUGGESTIONS.map(s => (
-                        <Button
-                          key={s}
-                          size='sm'
-                          variant='outline'
-                          onClick={() => send(s)}
+                        <button
+                          key={s.text}
+                          type='button'
+                          className='flex items-center justify-between gap-2 rounded-xl bg-card p-4 text-left shadow-(--triage-shadow) ring-1 ring-border transition hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+                          onClick={() => send(s.text)}
                         >
-                          {s}
-                        </Button>
+                          <span className='flex flex-col gap-1'>
+                            <span className='font-semibold text-foreground'>{s.title}</span>
+                            <span className='text-xs text-muted-foreground'>{s.sub}</span>
+                          </span>
+                          <IconBubble
+                            icon={s.icon}
+                            tone={s.tone}
+                          />
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -200,7 +230,7 @@ export function TriagePage() {
                 allowEmpty={context.length > 0}
                 onValueCommitted={send}
                 onStop={() => chat.stop()}
-                className='rounded-xl border p-2'
+                className='rounded-2xl border bg-card p-2 shadow-(--triage-shadow)'
               >
                 {context.length > 0 && (
                   <div className='flex flex-wrap items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground'>
