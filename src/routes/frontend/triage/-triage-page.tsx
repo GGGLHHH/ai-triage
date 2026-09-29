@@ -16,6 +16,8 @@ import {
   TranscriptPending,
   TranscriptProvider,
   useChat,
+  useMessageKeys,
+  ZH_PART_LABELS,
 } from '@gedatou/cadenza-ai'
 
 import { Badge, Button, MessageScrollerButton } from '@gedatou/cadenza-ui'
@@ -29,9 +31,9 @@ import { IconBubble } from '#/business/triage/icon-bubble'
 
 // 空对话时的快捷入口,排成小程序首页那种宫格卡片:标题 + 副标题 + 彩色图标。点了发的是 text
 const SUGGESTIONS: { text: string, title: string, sub: string, icon: string, tone: BubbleTone }[] = [
-  { text: '脸上长了好多斑,越来越明显', title: '脸上长斑', sub: '越来越明显', icon: 'i-fluent-color-star-24', tone: 'orange' },
-  { text: '头发越来越少,发际线也高了', title: '头发稀少', sub: '发际线变高了', icon: 'i-fluent-color-person-starburst-24', tone: 'violet' },
-  { text: '有狐臭,夏天特别尴尬', title: '腋下异味', sub: '夏天特别尴尬', icon: 'i-fluent-color-heart-24', tone: 'green' },
+  { text: '脸上长了好多斑,晒完越来越明显', title: '脸上长斑', sub: '晒完越来越明显', icon: 'i-fluent-color-weather-sunny-low-24', tone: 'orange' },
+  { text: '一直反复长痘,还留了痘印和痘坑', title: '痘痘和痘印', sub: '反复长、留了印子', icon: 'i-fluent-color-scan-person-24', tone: 'rose' },
+  { text: '眼角和额头有皱纹了,脸也有点松', title: '皱纹松弛', sub: '想抗衰紧致', icon: 'i-fluent-color-clock-24', tone: 'violet' },
 ]
 
 const SEX_LABEL: Record<Sex, string> = { female: '女', male: '男' }
@@ -45,7 +47,7 @@ export function TriagePage() {
   const [picked, setPicked] = useState<string[]>([])
   const [active, setActive] = useState<string | null>(null)
   const [sent, setSent] = useState<{ picks: string[], sex: Sex | null, focus: string | null }>({ picks: [], sex: null, focus: null })
-  // 人体图重置:bodyKey 换值让左栏整体重挂(视角/缩放/hover 归位)
+  // 面部图重置:bodyKey 换值让左栏整体重挂(视角/缩放/hover 归位)
   const [bodyKey, setBodyKey] = useState(0)
   // 思考档位走 forwardedProps,服务端按模型目录校验(v4-flash 支持 off/low/high/max)
   const chat = useChat({ connection: fetchServerSentEvents('/ai/chat'), forwardedProps: { thinking: 'low' } })
@@ -60,6 +62,8 @@ export function TriagePage() {
     ...pending.map(describe),
   ]
   const last = chat.messages.at(-1)
+  // TanStack 流式途中会给助手消息改 id,按 id 当 key 会重挂:思考计时归零(总显示 1s)、折叠状态丢失
+  const keyOf = useMessageKeys(chat.messages)
 
   function resetBody() {
     setActive(null)
@@ -79,11 +83,11 @@ export function TriagePage() {
     setPicked(prev => (prev.includes(symptom.id) ? prev.filter(id => id !== symptom.id) : [...prev, symptom.id]))
   }
 
-  // 人体图上的新选择与性别(首次或变更时)作为前缀行随消息发出,system-prompt.md 说明了【】标记的含义
+  // 面部图上的新选择与性别(首次或变更时)作为前缀行随消息发出,system-prompt.md 说明了【】标记的含义
   function send(text: string) {
     const lines = [
       ...(sent.sex === sex ? [] : [`【患者信息】性别:${SEX_LABEL[sex]}`]),
-      ...(context.length > 0 ? [`【人体图】${context.join('、')}`] : []),
+      ...(context.length > 0 ? [`【面部图】${context.join('、')}`] : []),
       ...(text.trim() === '' ? [] : [text.trim()]),
     ]
     setSent({ picks: picked, sex, focus: active })
@@ -133,7 +137,10 @@ export function TriagePage() {
           </Button>
         </header>
 
-        <PartRenderersProvider renderers={triageRenderers}>
+        <PartRenderersProvider
+          renderers={triageRenderers}
+          labels={ZH_PART_LABELS}
+        >
           <TranscriptProvider
             status={chat.status}
             interrupts={chat.interrupts}
@@ -154,7 +161,7 @@ export function TriagePage() {
                           size='lg'
                         />
                         <p className='text-lg font-semibold text-foreground'>您好,我是小美</p>
-                        <p className='text-sm text-muted-foreground'>想改善哪里?可以直接说,也可以在左边人体上点</p>
+                        <p className='text-sm text-muted-foreground'>想改善哪里?可以直接说,也可以在左边脸上点</p>
                       </div>
                       <div className='grid w-full grid-cols-3 gap-3'>
                         {SUGGESTIONS.map(s => (
@@ -180,7 +187,7 @@ export function TriagePage() {
                 )}
                 {chat.messages.map(message => (
                   <TranscriptMessage
-                    key={message.id}
+                    key={keyOf(message)}
                     message={message}
                     streaming={chat.status === 'streaming' && message === last}
                   >
@@ -213,7 +220,7 @@ export function TriagePage() {
                 >
                   {context.length > 0 && (
                     <div className='flex flex-wrap items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground'>
-                      <span>人体图已选,随消息发给小美:</span>
+                      <span>面部图已选,随消息发给小美:</span>
                       {context.map(label => (
                         <Badge
                           key={label}
