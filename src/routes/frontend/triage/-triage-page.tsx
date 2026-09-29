@@ -7,10 +7,12 @@ import {
   ComposerTextarea,
   ComposerToolbar,
   fetchServerSentEvents,
+  PartRenderersProvider,
   Transcript,
   TranscriptEmpty,
   TranscriptError,
   TranscriptMessage,
+  TranscriptParts,
   TranscriptPending,
   TranscriptProvider,
   useChat,
@@ -18,14 +20,12 @@ import {
 
 import { Badge, Button, MessageScrollerButton } from '@gedatou/cadenza-ui'
 import { IconMessagePlus } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
-import { aiMarkedRegions } from '#/business/triage/ai/tool-inputs'
-import { TriageParts } from '#/business/triage/ai/triage-parts'
+import { triageRenderers } from '#/business/triage/ai/renderers'
 import { regionById, symptomById } from '#/business/triage/body/body-data'
 import { BodyPanel } from '#/business/triage/body/body-panel'
 import { IconBubble } from '#/business/triage/icon-bubble'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 // 空对话时的快捷入口,排成小程序首页那种宫格卡片:标题 + 副标题 + 彩色图标。点了发的是 text
 const SUGGESTIONS: { text: string, title: string, sub: string, icon: string, tone: BubbleTone }[] = [
@@ -45,13 +45,11 @@ export function TriagePage() {
   const [picked, setPicked] = useState<string[]>([])
   const [active, setActive] = useState<string | null>(null)
   const [sent, setSent] = useState<{ picks: string[], sex: Sex | null, focus: string | null }>({ picks: [], sex: null, focus: null })
-  // 人体图重置:bodyKey 换值让左栏整体重挂(视角/缩放/hover 归位);markFrom 之前的消息不再参与 AI 高亮
+  // 人体图重置:bodyKey 换值让左栏整体重挂(视角/缩放/hover 归位)
   const [bodyKey, setBodyKey] = useState(0)
-  const [markFrom, setMarkFrom] = useState(0)
-  // 思考档位走 forwardedProps,服务端按模型目录校验(v4-flash 支持 off/low/high/max);low 兼顾守规则与速度
+  // 思考档位走 forwardedProps,服务端按模型目录校验(v4-flash 支持 off/low/high/max)
   const chat = useChat({ connection: fetchServerSentEvents('/ai/chat'), forwardedProps: { thinking: 'low' } })
 
-  const aiMarked = useMemo(() => aiMarkedRegions(chat.messages.slice(markFrom)), [chat.messages, markFrom])
   const pending = picked.filter(id => !sent.picks.includes(id)).flatMap(id => symptomById.get(id) ?? [])
   // 只点了部位、没选诉求(如点肩膀后打「痛」):部位本身也要让 AI 知道。已有该部位的待发诉求时不重复
   const focus = active !== null && active !== sent.focus && !pending.some(s => s.regionId === active)
@@ -61,13 +59,11 @@ export function TriagePage() {
     ...(focus ? [`当前部位:${focus.common}(${focus.formal})`] : []),
     ...pending.map(describe),
   ]
-  const localRedFlags = picked.flatMap(id => symptomById.get(id) ?? []).filter(s => s.redFlag !== undefined)
   const last = chat.messages.at(-1)
 
-  function resetBody(markFromIndex = chat.messages.length) {
+  function resetBody() {
     setActive(null)
     setPicked([])
-    setMarkFrom(markFromIndex)
     setBodyKey(k => k + 1)
   }
 
@@ -83,7 +79,7 @@ export function TriagePage() {
     setPicked(prev => (prev.includes(symptom.id) ? prev.filter(id => id !== symptom.id) : [...prev, symptom.id]))
   }
 
-  // 人体图上的新选择与性别(首次或变更时)作为前缀行随消息发出,提示词里约定了【】前缀的含义
+  // 人体图上的新选择与性别(首次或变更时)作为前缀行随消息发出,system-prompt.md 说明了【】标记的含义
   function send(text: string) {
     const lines = [
       ...(sent.sex === sex ? [] : [`【患者信息】性别:${SEX_LABEL[sex]}`]),
@@ -96,7 +92,7 @@ export function TriagePage() {
 
   function restart() {
     chat.clear()
-    resetBody(0)
+    resetBody()
     setSent({ picks: [], sex: null, focus: null })
   }
 
@@ -109,10 +105,9 @@ export function TriagePage() {
           onSexChange={switchSex}
           picked={picked}
           onToggle={toggle}
-          aiMarked={aiMarked}
           active={active}
           onActiveChange={setActive}
-          onReset={() => resetBody()}
+          onReset={resetBody}
         />
       </aside>
 
@@ -138,121 +133,106 @@ export function TriagePage() {
           </Button>
         </header>
 
-        <TranscriptProvider
-          status={chat.status}
-          interrupts={chat.interrupts}
-          addToolApprovalResponse={chat.addToolApprovalResponse}
-        >
-          <div className='mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col'>
-            <Transcript
-              anchorTurns
-              previousPeek={0}
-              after={<MessageScrollerButton />}
-            >
-              {chat.messages.length === 0 && (
-                <TranscriptEmpty>
-                  <div className='flex w-full max-w-2xl flex-col items-center gap-6 px-4'>
-                    <div className='flex flex-col items-center gap-2 text-center'>
-                      <IconBubble
-                        icon='i-fluent-color-bot-sparkle-24'
-                        size='lg'
-                      />
-                      <p className='text-lg font-semibold text-foreground'>您好,我是小美</p>
-                      <p className='text-sm text-muted-foreground'>想改善哪里?可以直接说,也可以在左边人体上点</p>
+        <PartRenderersProvider renderers={triageRenderers}>
+          <TranscriptProvider
+            status={chat.status}
+            interrupts={chat.interrupts}
+            addToolApprovalResponse={chat.addToolApprovalResponse}
+          >
+            <div className='mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col'>
+              <Transcript
+                anchorTurns
+                previousPeek={0}
+                after={<MessageScrollerButton />}
+              >
+                {chat.messages.length === 0 && (
+                  <TranscriptEmpty>
+                    <div className='flex w-full max-w-2xl flex-col items-center gap-6 px-4'>
+                      <div className='flex flex-col items-center gap-2 text-center'>
+                        <IconBubble
+                          icon='i-fluent-color-bot-sparkle-24'
+                          size='lg'
+                        />
+                        <p className='text-lg font-semibold text-foreground'>您好,我是小美</p>
+                        <p className='text-sm text-muted-foreground'>想改善哪里?可以直接说,也可以在左边人体上点</p>
+                      </div>
+                      <div className='grid w-full grid-cols-3 gap-3'>
+                        {SUGGESTIONS.map(s => (
+                          <button
+                            key={s.text}
+                            type='button'
+                            className='flex items-center justify-between gap-2 rounded-xl bg-card p-4 text-left shadow-(--triage-shadow) ring-1 ring-border transition hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
+                            onClick={() => send(s.text)}
+                          >
+                            <span className='flex flex-col gap-1'>
+                              <span className='font-semibold text-foreground'>{s.title}</span>
+                              <span className='text-xs text-muted-foreground'>{s.sub}</span>
+                            </span>
+                            <IconBubble
+                              icon={s.icon}
+                              tone={s.tone}
+                            />
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className='grid w-full grid-cols-3 gap-3'>
-                      {SUGGESTIONS.map(s => (
-                        <button
-                          key={s.text}
-                          type='button'
-                          className='flex items-center justify-between gap-2 rounded-xl bg-card p-4 text-left shadow-(--triage-shadow) ring-1 ring-border transition hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
-                          onClick={() => send(s.text)}
-                        >
-                          <span className='flex flex-col gap-1'>
-                            <span className='font-semibold text-foreground'>{s.title}</span>
-                            <span className='text-xs text-muted-foreground'>{s.sub}</span>
-                          </span>
-                          <IconBubble
-                            icon={s.icon}
-                            tone={s.tone}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </TranscriptEmpty>
-              )}
-              {chat.messages.map((message, index) => (
-                <TranscriptMessage
-                  // 不用 message.id:工具调用后模型进入下一轮时,TanStack AI 会中途换掉助手消息的 id,
-                  // 按 id 做 key 会整条重挂,思考块计时归零(永远显示 1s)。列表只追加、新对话整体清空,序号即稳定身份。
-
-                  key={index}
-                  message={message}
-                  streaming={chat.status === 'streaming' && message === last}
-                >
-                  <TriageParts
+                  </TranscriptEmpty>
+                )}
+                {chat.messages.map(message => (
+                  <TranscriptMessage
+                    key={message.id}
                     message={message}
                     streaming={chat.status === 'streaming' && message === last}
-                    status={chat.status}
-                  />
-                </TranscriptMessage>
-              ))}
-              {chat.status === 'submitted' && <TranscriptPending>小美正在思考…</TranscriptPending>}
-              {chat.error !== undefined && (
-                <TranscriptError error={chat.error}>
-                  {chat.error.message}
-                  <Button
-                    className='ms-2'
-                    size='xs'
-                    variant='outline'
-                    onClick={() => void chat.reload()}
                   >
-                    重试
-                  </Button>
-                </TranscriptError>
-              )}
-            </Transcript>
-
-            <div className='flex flex-col gap-2 px-4 pb-4'>
-              {/* 本地规则兜底:不等 AI,手点到危急症状立即提示 */}
-              {localRedFlags.map(symptom => (
-                <Alert
-                  key={symptom.id}
-                  variant='destructive'
-                >
-                  <AlertTitle>{`请立即就医:${symptom.name}`}</AlertTitle>
-                  <AlertDescription>{symptom.redFlag}</AlertDescription>
-                </Alert>
-              ))}
-              <Composer
-                status={chat.status}
-                allowEmpty={context.length > 0}
-                onValueCommitted={send}
-                onStop={() => chat.stop()}
-                className='rounded-2xl border bg-card p-2 shadow-(--triage-shadow)'
-              >
-                {context.length > 0 && (
-                  <div className='flex flex-wrap items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground'>
-                    <span>人体图已选,随消息发给小美:</span>
-                    {context.map(label => (
-                      <Badge
-                        key={label}
-                        variant='secondary'
-                      >
-                        {label}
-                      </Badge>
-                    ))}
-                  </div>
+                    <TranscriptParts message={message} />
+                  </TranscriptMessage>
+                ))}
+                {chat.status === 'submitted' && <TranscriptPending>小美正在思考…</TranscriptPending>}
+                {chat.error !== undefined && (
+                  <TranscriptError error={chat.error}>
+                    {chat.error.message}
+                    <Button
+                      className='ms-2'
+                      size='xs'
+                      variant='outline'
+                      onClick={() => void chat.reload()}
+                    >
+                      重试
+                    </Button>
+                  </TranscriptError>
                 )}
-                <ComposerTextarea placeholder='说说想改善的地方、困扰多久了…' />
-                <ComposerToolbar>
-                  <ComposerSubmit className='ms-auto' />
-                </ComposerToolbar>
-              </Composer>
+              </Transcript>
+
+              <div className='flex flex-col gap-2 px-4 pb-4'>
+                <Composer
+                  status={chat.status}
+                  allowEmpty={context.length > 0}
+                  onValueCommitted={send}
+                  onStop={() => chat.stop()}
+                  className='rounded-2xl border bg-card p-2 shadow-(--triage-shadow)'
+                >
+                  {context.length > 0 && (
+                    <div className='flex flex-wrap items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground'>
+                      <span>人体图已选,随消息发给小美:</span>
+                      {context.map(label => (
+                        <Badge
+                          key={label}
+                          variant='secondary'
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <ComposerTextarea placeholder='说说想改善的地方、困扰多久了…' />
+                  <ComposerToolbar>
+                    <ComposerSubmit className='ms-auto' />
+                  </ComposerToolbar>
+                </Composer>
+              </div>
             </div>
-          </div>
-        </TranscriptProvider>
+          </TranscriptProvider>
+        </PartRenderersProvider>
       </main>
     </div>
   )
