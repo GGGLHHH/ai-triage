@@ -2,13 +2,20 @@ import type { Sex, Symptom } from '../types'
 import type { PointerAt } from './body-scene'
 
 import { Button } from '@gedatou/cadenza-ui'
+import { IconRefresh } from '@tabler/icons-react'
 import { useRef, useState } from 'react'
+
+import { cn } from '@/lib/utils'
+
+import { IconBubble } from '../icon-bubble'
 
 import { regionById, symptomById, symptomsOf, WHOLE_BODY } from './body-data'
 import { BodyScene } from './body-scene'
 import { RegionList } from './region-list'
 
 const TOOLTIP_WIDTH = 150
+
+const MODES = [['3d', '3D 人体'], ['list', '部位列表']] as const
 
 function hasWebGL(): boolean {
   try {
@@ -45,35 +52,64 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active
 
   return (
     <div className='flex h-full flex-col'>
-      <header className='flex h-12 shrink-0 items-center gap-1 border-b px-3'>
-        <h2 className='font-medium'>想改善哪里</h2>
-        <div className='ml-auto flex gap-1'>
+      <header className='flex h-14 shrink-0 items-center gap-2.5 px-4'>
+        <IconBubble
+          icon='i-fluent-color-person-24'
+          size='sm'
+        />
+        <h2 className='font-semibold'>想改善哪里</h2>
+        {/* 胶囊开关,照小程序顶部「English / 关怀版」那一对 */}
+        <div
+          role='radiogroup'
+          aria-label='性别'
+          className='ml-auto flex rounded-full bg-muted p-0.5'
+        >
           {(['female', 'male'] as const).map(s => (
-            <Button
+            <button
               key={s}
-              size='sm'
-              variant={sex === s ? 'default' : 'outline'}
+              type='button'
+              role='radio'
+              aria-checked={sex === s}
+              className={cn(
+                'h-7 rounded-full px-3.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                sex === s ? 'bg-primary font-medium text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
               onClick={() => onSexChange(s)}
             >
               {s === 'female' ? '女' : '男'}
-            </Button>
+            </button>
           ))}
-          <Button
-            size='sm'
-            variant='ghost'
-            onClick={() => setMode(mode === '3d' ? 'list' : '3d')}
-          >
-            {mode === '3d' ? '列表' : '3D'}
-          </Button>
-          <Button
-            size='sm'
-            variant='ghost'
-            onClick={onReset}
-          >
-            重置
-          </Button>
         </div>
       </header>
+
+      {/* 视图切换做成带下划线的页签,照小程序「门诊 / 住院 / 体检」那一排 */}
+      <div className='flex shrink-0 items-end gap-5 border-b px-4'>
+        {MODES.map(([value, label]) => (
+          <button
+            key={value}
+            type='button'
+            aria-pressed={mode === value}
+            className={cn(
+              'relative pb-2.5 text-sm transition-colors focus-visible:text-primary focus-visible:outline-none',
+              mode === value
+                ? 'font-semibold text-primary after:absolute after:inset-x-1/4 after:bottom-0 after:h-0.75 after:rounded-full after:bg-primary'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setMode(value)}
+          >
+            {label}
+          </button>
+        ))}
+        <Button
+          size='xs'
+          variant='ghost'
+          className='mb-1.5 ml-auto text-muted-foreground'
+          onClick={onReset}
+        >
+          <IconRefresh />
+          重置
+        </Button>
+      </div>
 
       <div
         ref={viewerRef}
@@ -99,7 +135,7 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active
                 <Button
                   size='sm'
                   variant={active === WHOLE_BODY ? 'default' : 'outline'}
-                  className='absolute bottom-3 left-3'
+                  className='absolute bottom-3 left-3 rounded-full bg-card'
                   onClick={() => setActive(WHOLE_BODY)}
                 >
                   全身 / 其他
@@ -129,13 +165,13 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active
             )}
       </div>
 
-      <section className='flex max-h-[35%] shrink-0 flex-col gap-2 overflow-y-auto border-t p-3'>
+      <section className='flex max-h-[35%] shrink-0 flex-col gap-3 overflow-y-auto border-t bg-background p-4'>
         {activeRegion
           ? (
               <>
-                <h3 className='text-sm'>
-                  <span className='font-medium'>{activeRegion.common}</span>
-                  <span className='ml-2 text-muted-foreground'>{activeRegion.formal}</span>
+                <h3 className='flex items-baseline gap-2'>
+                  <span className='font-semibold'>{activeRegion.common}</span>
+                  <span className='text-xs text-muted-foreground'>{activeRegion.formal}</span>
                 </h3>
                 <div className='flex flex-wrap gap-2'>
                   {symptomsOf(activeRegion.id, sex).map(symptom => (
@@ -143,6 +179,7 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active
                       key={symptom.id}
                       size='sm'
                       variant={picked.includes(symptom.id) ? 'default' : 'outline'}
+                      className='rounded-full'
                       onClick={() => onToggle(symptom)}
                     >
                       {symptom.name}

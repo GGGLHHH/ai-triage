@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { regionById, symptomById } from '../body/body-data'
 import { DepartmentCard } from '../department-card'
+import { IconBubble } from '../icon-bubble'
 import { departmentById } from '../mock-data'
 import { inputOf } from './tool-inputs'
 
@@ -18,6 +19,7 @@ export function MarkBodyCard({ part }: { part: ToolCallPart }) {
   ]
   return (
     <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
+      <span className='i-fluent-color-person-24 pointer-events-none size-4' />
       <span>已在人体图标出</span>
       {labels.map(label => (
         <Badge
@@ -35,7 +37,10 @@ export function EmergencyCard({ part }: { part: ToolCallPart }) {
   const { reason } = inputOf<EmergencyInput>(part)
   return (
     <Alert variant='destructive'>
-      <AlertTitle>请立即就医(急诊 / 拨打 120)</AlertTitle>
+      <AlertTitle className='flex items-center gap-1.5'>
+        <span className='i-fluent-color-warning-24 pointer-events-none size-5' />
+        请立即就医(急诊 / 拨打 120)
+      </AlertTitle>
       <AlertDescription>{reason ?? '…'}</AlertDescription>
     </Alert>
   )
@@ -65,9 +70,17 @@ export function SummaryCard({ part }: { part: ToolCallPart }) {
     ['危险信号', riskFlags],
   ]
   return (
-    <Card size='sm'>
-      <CardHeader>
-        <CardTitle>预问诊摘要(供接诊医生参考)</CardTitle>
+    <Card
+      size='sm'
+      className='shadow-(--triage-shadow) ring-border'
+    >
+      <CardHeader className='flex items-center gap-3'>
+        <IconBubble
+          icon='i-fluent-color-document-text-24'
+          tone='violet'
+          size='sm'
+        />
+        <CardTitle className='font-semibold'>预问诊摘要(供接诊医生参考)</CardTitle>
       </CardHeader>
       <CardContent>
         <dl className='grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-2 text-sm'>
