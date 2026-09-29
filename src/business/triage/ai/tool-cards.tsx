@@ -1,0 +1,87 @@
+import type { EmergencyInput, MarkInput, RecommendInput, SummaryInput, ToolCallPart } from './tool-inputs'
+
+import { Badge } from '@gedatou/cadenza-ui'
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+import { regionById, symptomById } from '../body/body-data'
+import { DepartmentCard } from '../department-card'
+import { departmentById } from '../mock-data'
+import { inputOf } from './tool-inputs'
+
+export function MarkBodyCard({ part }: { part: ToolCallPart }) {
+  const { regionIds = [], symptomIds = [] } = inputOf<MarkInput>(part)
+  const labels = [
+    ...regionIds.flatMap(id => regionById.get(id)?.common ?? []),
+    ...symptomIds.flatMap(id => symptomById.get(id)?.name ?? []),
+  ]
+  return (
+    <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
+      <span>已在人体图标出</span>
+      {labels.map(label => (
+        <Badge
+          key={label}
+          variant='secondary'
+        >
+          {label}
+        </Badge>
+      ))}
+    </div>
+  )
+}
+
+export function EmergencyCard({ part }: { part: ToolCallPart }) {
+  const { reason } = inputOf<EmergencyInput>(part)
+  return (
+    <Alert variant='destructive'>
+      <AlertTitle>请立即就医(急诊 / 拨打 120)</AlertTitle>
+      <AlertDescription>{reason ?? '…'}</AlertDescription>
+    </Alert>
+  )
+}
+
+export function RecommendCard({ part }: { part: ToolCallPart }) {
+  const { departmentIds = [], reason } = inputOf<RecommendInput>(part)
+  return (
+    <div className='flex flex-col gap-3'>
+      {reason !== undefined && <p className='text-sm text-muted-foreground'>{reason}</p>}
+      {departmentIds.flatMap(id => departmentById.get(id) ?? []).map(department => (
+        <DepartmentCard
+          key={department.id}
+          match={{ department, hits: [] }}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function SummaryCard({ part }: { part: ToolCallPart }) {
+  const { chiefComplaint, presentIllness, pastHistory, riskFlags } = inputOf<SummaryInput>(part)
+  const rows: [string, string | undefined][] = [
+    ['主诉', chiefComplaint],
+    ['现病史', presentIllness],
+    ['既往史', pastHistory],
+    ['危险信号', riskFlags],
+  ]
+  return (
+    <Card size='sm'>
+      <CardHeader>
+        <CardTitle>预问诊摘要(供接诊医生参考)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl className='grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-2 text-sm'>
+          {rows.filter(([, value]) => value !== undefined && value !== '').map(([label, value]) => (
+            <div
+              key={label}
+              className='contents'
+            >
+              <dt className='text-muted-foreground'>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
+  )
+}

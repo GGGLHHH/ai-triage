@@ -4,6 +4,10 @@
    库里的 class,cadenza 组件会全裸渲染。它自己 @import 'tw-animate-css',所以这里
    不再单列。逐 token 比对过:亮/暗共 63 个共有 token 取值差异 0 个。 */
 @import '@gedatou/cadenza-ui/styles.css';
+/* AI 会话(cadenza-ai):streamdown 的 Markdown 样式与 KaTeX 在它的 styles.css 里;
+   streamdown 自己的 class 要单独扫(它是 cadenza-ai 的依赖,因此在 package.json 里直列一份才有稳定路径)。 */
+@import '@gedatou/cadenza-ai/styles.css';
+@source '../node_modules/streamdown/dist/*.js';
 @import '@fontsource-variable/inter';
 
 /* Local style partials (order: tokens -> theme bridge -> base layer)。

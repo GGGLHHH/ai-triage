@@ -1,3 +1,5 @@
+minimumReleaseAgeExcludePrune: true
+
 # pnpm 11 默认让新发布的版本静置 24h 才可解析 —— 这是给「发布账号被盗」留的缓冲。
 # 只有 cadenza 需要豁免(本机同步发版、当天就要用;静置期会把 `pnpm add` 悄悄装成
 # 上一个版本),所以用 Exclude 而不是把整棵依赖树的静置期一起关掉。
@@ -5,8 +7,7 @@ minimumReleaseAgeExclude:
   - '@gedatou/cadenza-ui'
   - '@gedatou/cadenza-form'
   - '@gedatou/cadenza-utils'
-
-shellEmulator: true
+  - '@gedatou/cadenza-ai'
 
 trustPolicy: no-downgrade
 # Three lockfile entries lost provenance relative to earlier releases of the same
@@ -20,6 +21,22 @@ trustPolicyExclude:
   - semver@6.3.1
   # via @types/node <- happy-dom / vitest.
   - undici-types@6.21.0
+  # via vitest@5. Same maintainer (jkoops) as 3.2.1, which had provenance; 3.2.2 was
+  # published without it on 2025-01-08. Approved by the user on 2026-09-29.
+  - why-is-node-running@3.2.2
+
+# 本机到 registry.npmjs.org 单请求 20-30s,默认超时撑不过供应链校验。
+fetchTimeout: 900000
+shellEmulator: true
+
+# TS 7 没有 JS 编译器 API。codegen 插件把 typescript 写成普通依赖(>=5),根上的别名管不到它,
+# 单独钉回 TS 6;根上 typescript 同理(见 package.json 的 @typescript/native)。
+overrides:
+  vite-plugin-openapi-codegen>typescript: ^6.0.3
+
+allowBuilds:
+  # code-inspector-plugin@2 的终端功能才用到;不跑它的原生构建脚本。
+  node-pty: false
 
 onlyBuiltDependencies:
   - esbuild

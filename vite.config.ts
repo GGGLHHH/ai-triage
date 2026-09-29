@@ -16,14 +16,26 @@ import { openapiCodegen } from 'vite-plugin-openapi-codegen'
 // 端口不写死:读仓库根的 .env(没有该文件也行,?? 后的兜底即原来的值)。见 .env.example。
 // envDir 用本文件所在目录而非 cwd —— vitest.config.ts 也调本函数,不能假定 cwd。
 // prefix 传 '' = 连非 VITE_ 前缀的也读到(只用于配 dev server / codegen,不进客户端产物)。
+// react-three-fiber 场景:两个 dev 插件会往每个 JSX 元素注入 data-* 属性,R3F 把带 - 的 prop 当成
+// 嵌套属性路径去设(mesh.data.insp.path),整个场景挂不上。约定场景文件以 -scene.tsx 结尾,统一跳过注入。
+const R3F_SCENE_FILES = /-scene\.tsx$/
+
 const config = defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), '')
   const backend = env.BACKEND_ORIGIN ?? 'http://localhost:8137'
+  // 服务端密钥只进 SSR 进程的 process.env(cadenza-ai 按 env 名兜底取 key),不进客户端产物。
+  // dev 由这里从 .env 注入;生产由部署环境注入同名变量(或 node --env-file=.env)。
+  process.env.DEEPSEEK_API_KEY ??= env.DEEPSEEK_API_KEY
 
   return {
     resolve: { tsconfigPaths: true },
     plugins: [
-      devtools(),
+      // consolePiping 关掉:浏览器 console 转到终端、终端又回灌浏览器,一条日志在两边来回复制,
+      // dev.log 一小时涨到上千万行。
+      devtools({
+        injectSource: { enabled: true, ignore: { files: [R3F_SCENE_FILES] } },
+        consolePiping: { enabled: false },
+      }),
       openapiCodegen({
         input: `${backend}/api-docs/openapi.json`,
         output: 'src/generated',
@@ -47,6 +59,7 @@ const config = defineConfig(({ command, mode }) => {
       ...(command === 'build' && process.env.VITEST !== 'true' ? [nitro()] : []),
       codeInspectorPlugin({
         bundler: 'vite',
+        exclude: [R3F_SCENE_FILES],
         dev: () => process.env.NODE_ENV === 'development' && process.env.VITEST !== 'true',
       }),
       viteReact(),

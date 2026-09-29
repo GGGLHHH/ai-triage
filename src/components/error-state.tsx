@@ -30,7 +30,7 @@ export function ErrorState({ className, code, description, homeTo = '/', title }
         >
           {t('action.goBack')}
         </Button>
-        <Button render={<Link to={homeTo} />}>{t('action.home')}</Button>
+        <Button nativeButton={false} render={<Link to={homeTo} />}>{t('action.home')}</Button>
       </div>
     </div>
   )
