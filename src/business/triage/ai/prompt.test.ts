@@ -12,6 +12,12 @@ describe('triage system prompt', () => {
     expect(TRIAGE_SYSTEM_PROMPT).not.toMatch(/\{\{.+?\}\}/)
   })
 
+  it('embeds the FAQ and the concern tags', () => {
+    expect(TRIAGE_SYSTEM_PROMPT).toContain('只能自费诊疗')
+    expect(TRIAGE_SYSTEM_PROMPT).toContain('### 医疗美容科能不能用医保?')
+    expect(TRIAGE_SYSTEM_PROMPT).toMatch(/- spots: .*标签:黄褐斑/)
+  })
+
   it('names every tool it instructs the model to call', () => {
     for (const name of Object.values(TOOL)) {
       expect(TRIAGE_SYSTEM_PROMPT).toContain(name)
@@ -19,7 +25,7 @@ describe('triage system prompt', () => {
   })
 
   it('fails loudly on a missing or unknown placeholder', () => {
-    const all = '{{部位清单}}\n{{诉求清单}}\n{{门诊清单}}'
+    const all = '{{部位清单}}\n{{诉求清单}}\n{{门诊清单}}\n{{常见问题}}'
     expect(() => renderSystemPrompt(all.replace('{{门诊清单}}', ''))).toThrow(/缺少占位符 \{\{门诊清单\}\}/)
     expect(() => renderSystemPrompt(`${all}\n{{科室清单}}`)).toThrow(/不认识/)
   })

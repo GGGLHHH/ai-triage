@@ -45,8 +45,10 @@ export interface Symptom {
   id: string
   regionId: string
   name: string
-  // 首个是首选科室,排序打平时靠前
+  // 首个是首选门诊,排序打平时靠前
   departmentIds: string[]
+  // 病名、别名、项目名(来自科室《诊疗核心信息》的分诊规则),给 AI 做同义词匹配
+  tags: string[]
   sex?: Sex
   // 危急症状:选中即提示急诊,文案给患者看
   redFlag?: string

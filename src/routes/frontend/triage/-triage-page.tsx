@@ -152,9 +152,12 @@ export function TriagePage() {
                   </div>
                 </TranscriptEmpty>
               )}
-              {chat.messages.map(message => (
+              {chat.messages.map((message, index) => (
                 <TranscriptMessage
-                  key={message.id}
+                  // 不用 message.id:工具调用后模型进入下一轮时,TanStack AI 会中途换掉助手消息的 id,
+                  // 按 id 做 key 会整条重挂,思考块计时归零(永远显示 1s)。列表只追加、新对话整体清空,序号即稳定身份。
+
+                  key={index}
                   message={message}
                   streaming={chat.status === 'streaming' && message === last}
                 >

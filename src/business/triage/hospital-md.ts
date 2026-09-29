@@ -10,7 +10,8 @@ const SLOT = /^(今天|明天|后天)(上午|下午|晚上)\s*(\d+)$/
 const DAYS = ['今天', '明天', '后天']
 const PERIODS: Record<string, Slot['period']> = { 上午: 'am', 下午: 'pm', 晚上: 'night' }
 
-function cells(line: string): string[] {
+// md 表格一行 → 单元格;concerns-md 也用
+export function cells(line: string): string[] {
   return line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
 }
 
