@@ -32,7 +32,6 @@ interface BodyPanelProps {
   onSexChange: (sex: Sex) => void
   picked: readonly string[] // 患者手点选中的症状 id
   onToggle: (symptom: Symptom) => void
-  aiMarked: ReadonlySet<string> // AI 从对话里标出的部位 id
   active: string | null // 当前点开的部位;要随消息发给 AI,所以由页面持有
   onActiveChange: (region: string | null) => void
   onReset: () => void
@@ -40,14 +39,15 @@ interface BodyPanelProps {
 
 // 左栏:3D 人体(或 2D 列表)+ 当前部位的症状选择。只管「选」,发送与对话在页面层。
 // 视角、hover、3D/列表 这些面板内状态靠页面换 key 重挂来重置(见 TriagePage.resetBody)。
-export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active, onActiveChange: setActive, onReset }: BodyPanelProps) {
+export function BodyPanel({ sex, onSexChange, picked, onToggle, active, onActiveChange: setActive, onReset }: BodyPanelProps) {
   const [mode, setMode] = useState<'3d' | 'list'>(() => (hasWebGL() ? '3d' : 'list'))
   const [hover, setHover] = useState<{ region: string, at: PointerAt } | null>(null)
   const viewerRef = useRef<HTMLDivElement>(null)
 
-  const marked = new Set([...aiMarked, ...picked.flatMap(id => symptomById.get(id)?.regionId ?? [])])
+  const marked = new Set(picked.flatMap(id => symptomById.get(id)?.regionId ?? []))
   const activeRegion = active === null ? undefined : regionById.get(active)
   const tooltip = hover === null ? undefined : regionById.get(hover.region)
+  const activeSymptoms = activeRegion ? symptomsOf(activeRegion.id, sex) : []
   const viewerWidth = viewerRef.current?.clientWidth ?? 0
 
   return (
@@ -173,8 +173,9 @@ export function BodyPanel({ sex, onSexChange, picked, onToggle, aiMarked, active
                   <span className='font-semibold'>{activeRegion.common}</span>
                   <span className='text-xs text-muted-foreground'>{activeRegion.formal}</span>
                 </h3>
+                {/* 诉求只收知识库覆盖的(concerns.md),有的部位暂时一条都没有 */}
                 <div className='flex flex-wrap gap-2'>
-                  {symptomsOf(activeRegion.id, sex).map(symptom => (
+                  {activeSymptoms.map(symptom => (
                     <Button
                       key={symptom.id}
                       size='sm'

@@ -13,16 +13,25 @@ describe('body data', () => {
     }
   })
 
-  it.each(['male', 'female'] as const)('%s: every region has a mesh and symptoms, and every mesh is a region', (sex) => {
+  it.each(['male', 'female'] as const)('%s: every region has a mesh, every mesh is a region, every symptom sits in a region of that sex', (sex) => {
     const meshRegions = new Set(bodyParts(sex).map(p => p.region))
     for (const region of regionsFor(sex)) {
       if (region.id !== WHOLE_BODY) {
         expect(meshRegions.has(region.id), region.id).toBe(true)
       }
+    }
+    // 部位粒度跟文档走:每个部位都有诉求;诉求不能挂在该性别看不到的部位上
+    for (const region of regionsFor(sex)) {
       expect(symptomsOf(region.id, sex).length, region.id).toBeGreaterThan(0)
+    }
+    for (const symptom of symptoms.filter(s => s.sex === undefined || s.sex === sex)) {
+      expect(regionsFor(sex).some(r => r.id === symptom.regionId), symptom.id).toBe(true)
     }
     const allowed = new Set(regionsFor(sex).map(r => r.id))
     for (const id of meshRegions) {
+      if (id === undefined) {
+        continue
+      }
       expect(allowed.has(id), id).toBe(true)
     }
   })

@@ -39,7 +39,7 @@ export function BodyScene(props: BodySceneProps) {
 
   return (
     <Canvas
-      camera={{ position: [0, 0.9, 3.4], fov: 35 }}
+      camera={{ position: [0, 1.2, 2.4], fov: 35 }}
       dpr={[1, 2]}
       onPointerMissed={() => props.onHover(null)}
     >
@@ -67,7 +67,7 @@ export function BodyScene(props: BodySceneProps) {
         onChange={() => {
           rotatedRef.current = true
         }}
-        target={[0, 0.88, 0]}
+        target={[0, 1.15, 0]}
         enablePan={false}
         minDistance={0.7}
         maxDistance={3.4}
@@ -80,12 +80,16 @@ export function BodyScene(props: BodySceneProps) {
 
 function PartMesh({ part, hovered, active, marked, onHover, onSelect }: BodySceneProps & { part: BodyPart }) {
   const at = (e: ThreeEvent<PointerEvent | MouseEvent>): PointerAt => ({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY })
-  const color = part.region === active
-    ? ACTIVE
-    : part.region === hovered
-      ? HOVER
-      : marked.has(part.region) ? MARKED : (part.color ?? SKIN)
+  const { region } = part
+  const color = region === undefined
+    ? (part.color ?? SKIN)
+    : region === active
+      ? ACTIVE
+      : region === hovered
+        ? HOVER
+        : marked.has(region) ? MARKED : (part.color ?? SKIN)
 
+  // 不可点的块(无 region)也要拦住事件,否则会穿透到背后的部位(从背后点臀部选中肚子)
   return (
     <mesh
       position={part.position}
@@ -93,12 +97,14 @@ function PartMesh({ part, hovered, active, marked, onHover, onSelect }: BodyScen
       scale={part.scale}
       onPointerMove={(e) => {
         e.stopPropagation()
-        onHover(part.region, at(e))
+        onHover(region ?? null, at(e))
       }}
       onPointerOut={() => onHover(null)}
       onClick={(e) => {
         e.stopPropagation()
-        onSelect(part.region, at(e))
+        if (region !== undefined) {
+          onSelect(region, at(e))
+        }
       }}
     >
       <PartGeometry part={part} />

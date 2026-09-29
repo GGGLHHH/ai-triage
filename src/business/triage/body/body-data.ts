@@ -9,17 +9,10 @@ export const WHOLE_BODY = 'whole'
 
 export const regions: BodyRegion[] = [
   { id: 'scalp', common: '头发 / 头皮', formal: '头皮与毛发', group: '头颈' },
-  { id: 'face', common: '脸', formal: '面部', group: '头颈' },
-  { id: 'eye', common: '眼睛周围', formal: '眼周', group: '头颈' },
-  { id: 'nose', common: '鼻子', formal: '鼻部', group: '头颈' },
-  { id: 'mouth', common: '嘴唇 / 嘴周', formal: '唇周', group: '头颈' },
-  { id: 'ear', common: '耳朵', formal: '耳廓', group: '头颈' },
-  { id: 'neck', common: '脖子', formal: '颈部', group: '头颈' },
+  { id: 'face', common: '脸', formal: '面部(含五官)', group: '头颈' },
   { id: 'breast', common: '胸部', formal: '乳房 / 乳头乳晕', group: '躯干' },
-  { id: 'armpit', common: '胳肢窝', formal: '腋部', group: '躯干' },
   { id: 'abdomen', common: '肚子', formal: '腹部', group: '躯干' },
   { id: 'back', common: '后背', formal: '背部', group: '躯干' },
-  { id: 'buttocks', common: '屁股', formal: '臀部', group: '躯干' },
   { id: 'privateFemale', common: '私密处', formal: '女性私密部位', group: '躯干', sex: 'female' },
   { id: 'privateMale', common: '私密处', formal: '男性私密部位', group: '躯干', sex: 'male' },
   { id: 'arm', common: '胳膊', formal: '上肢', group: '四肢' },
