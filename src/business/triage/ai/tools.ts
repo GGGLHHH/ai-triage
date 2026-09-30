@@ -1,6 +1,7 @@
 import { toolDefinition } from '@gedatou/cadenza-ai/server'
 import { z } from 'zod'
 
+import { hisMode, searchDepartments, searchDoctors } from '../his/his.ts'
 import { searchKnowledge } from '../kb/kb.ts'
 import { departments } from '../mock-data'
 import { TOOL } from './prompt'
@@ -15,6 +16,47 @@ async function searchKnowledgeTool({ query }: { query: string }) {
     return { hits: [], error: `知识库暂不可用:${error instanceof Error ? error.message : String(error)}` }
   }
 }
+
+// HIS 不可达(内网不通、超时)同样不抛,把原因交给模型;结果截断,别把整院名单塞进上下文
+const HIS_LIMIT = 20
+const hisError = (error: unknown) => `HIS 暂不可用:${error instanceof Error ? error.message : String(error)}`
+
+async function hisDepartmentsTool({ keyword }: { keyword: string }) {
+  try {
+    const rows = await searchDepartments(keyword)
+    return { total: rows.length, departments: rows.slice(0, HIS_LIMIT).map(d => ({ id: d.KSID, name: d.KSMC })) }
+  }
+  catch (error) {
+    return { departments: [], error: hisError(error) }
+  }
+}
+
+// 只给姓名和工号:登录账号(ZH)不出服务端
+async function hisDoctorsTool({ keyword }: { keyword: string }) {
+  try {
+    const rows = await searchDoctors(keyword)
+    return { total: rows.length, doctors: rows.slice(0, HIS_LIMIT).map(u => ({ id: u.RYID, name: u.XM, staffNo: u.GH })) }
+  }
+  catch (error) {
+    return { doctors: [], error: hisError(error) }
+  }
+}
+
+// 配了 HIS_MODE 才注册(见 his/his.ts);患者查询(JH3015)不给模型,免得按任意登记号查人
+const hisTools = hisMode() === undefined
+  ? []
+  : [
+      toolDefinition({
+        name: TOOL.hisDepartments,
+        description: '查院内 HIS 的门诊科室(实时数据,仅有效的门诊科室),按名称关键词过滤',
+        inputSchema: z.object({ keyword: z.string().describe('科室名称关键词,如「美容」「皮肤」;空字符串列出全部') }),
+      }).server(hisDepartmentsTool),
+      toolDefinition({
+        name: TOOL.hisDoctors,
+        description: '查院内 HIS 的医生(实时数据,仅在职医生),按姓名或工号关键词过滤。HIS 人员信息不含所属科室',
+        inputSchema: z.object({ keyword: z.string().describe('医生姓名或工号关键词') }),
+      }).server(hisDoctorsTool),
+    ]
 
 // 卡片由前端按工具名渲染(见 renderers.tsx),服务端只回执
 const ack = async () => ({ ok: true })
@@ -35,4 +77,5 @@ export const triageTools = [
       reason: z.string().describe('推荐理由'),
     }),
   }).server(ack),
+  ...hisTools,
 ]

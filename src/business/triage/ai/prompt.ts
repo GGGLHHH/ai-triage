@@ -1,7 +1,12 @@
 import { departments } from '../mock-data'
 import template from './system-prompt.md?raw'
 
-export const TOOL = { knowledge: 'search_knowledge', recommend: 'recommend_departments' } as const
+export const TOOL = {
+  knowledge: 'search_knowledge',
+  recommend: 'recommend_departments',
+  hisDepartments: 'his_search_departments',
+  hisDoctors: 'his_search_doctors',
+} as const
 
 // system-prompt.md 里的占位符由数据填:门诊来自 hospital.md,改门诊不用动提示词
 const LISTS: Record<string, string[]> = {

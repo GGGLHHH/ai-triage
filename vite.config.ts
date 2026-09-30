@@ -25,7 +25,7 @@ const config = defineConfig(({ command, mode }) => {
   const backend = env.BACKEND_ORIGIN ?? 'http://localhost:8137'
   // 服务端密钥只进 SSR 进程的 process.env(cadenza-ai 按 env 名兜底取 key),不进客户端产物。
   // dev 由这里从 .env 注入;生产由部署环境注入同名变量(或 node --env-file=.env)。
-  for (const key of ['DEEPSEEK_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_API_KEY', 'KB_DATABASE_URL', 'KB_EMBED_URL', 'KB_EMBED_MODEL', 'KB_EMBED_API_KEY']) {
+  for (const key of ['DEEPSEEK_API_KEY', 'AI_BASE_URL', 'AI_MODEL', 'AI_API_KEY', 'HIS_MODE', 'HIS_URL', 'HIS_USERNAME', 'HIS_PASSWORD', 'KB_DATABASE_URL', 'KB_EMBED_URL', 'KB_EMBED_MODEL', 'KB_EMBED_API_KEY']) {
     // 只注入 .env 里真有的:给 process.env 赋 undefined 会变成字符串 "undefined",代码里的默认值就失效了
     if (env[key] !== undefined) {
       process.env[key] ??= env[key]
