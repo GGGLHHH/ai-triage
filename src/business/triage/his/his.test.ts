@@ -19,8 +19,10 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-// 本地假 HIS:记录请求,按 handler 回包
-async function fakeHis(handler: (path: string, headers: Record<string, string | string[] | undefined>, body: string) => { type: string, body: string }) {
+interface Reply { type?: string, body: string, status?: number, delayMs?: number }
+
+// 本地假 HIS:记录请求,按 handler 回包;每个请求都带 0–30ms 随机抖动,handler 可再加延迟、改状态码
+async function fakeHis(handler: (path: string, headers: Record<string, string | string[] | undefined>, body: string) => Reply) {
   const requests: { path: string, headers: Record<string, string | string[] | undefined>, body: string }[] = []
   const server = createServer((req, res) => {
     let body = ''
@@ -30,13 +32,21 @@ async function fakeHis(handler: (path: string, headers: Record<string, string | 
     req.on('end', () => {
       requests.push({ path: req.url ?? '', headers: req.headers, body })
       const out = handler(req.url ?? '', req.headers, body)
-      res.writeHead(200, { 'content-type': out.type }).end(out.body)
+      setTimeout(() => {
+        res.writeHead(out.status ?? 200, { 'content-type': out.type ?? 'text/xml' }).end(out.body)
+      }, Math.random() * 30 + (out.delayMs ?? 0))
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-  return { url, requests, close: () => new Promise(resolve => server.close(resolve)) }
+  const close = () => new Promise((resolve) => {
+    server.closeAllConnections() // 超时用例里还挂着的请求直接断开
+    server.close(resolve)
+  })
+  return { url, requests, close }
 }
+
+const soap = (message: unknown) => `<SampleResult>${JSON.stringify(message).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}</SampleResult>`
 
 const DEPTS = [
   { KSID: '1', KSMC: '医疗美容科门诊', SFYX: 1, MZ_FLAG: 1 },
@@ -109,5 +119,107 @@ describe('his mock', () => {
     const { hisMode } = await load({})
     expect(process.env.HIS_MODE).toBeUndefined()
     expect(hisMode()).toBeUndefined()
+  })
+})
+
+describe('his edge cases (random latency)', () => {
+  it('shares one in-flight request across concurrent callers', async () => {
+    const his = await fakeHis(() => ({ body: soap({ code: 0, data: DEPTS }), delayMs: 50 + Math.random() * 200 }))
+    try {
+      const { searchDepartments } = await load({ HIS_MODE: 'soap', HIS_URL: his.url })
+      const results = await Promise.all(Array.from({ length: 8 }, (_, i) => searchDepartments(i % 2 ? '美容' : '')))
+      expect(his.requests).toHaveLength(1)
+      expect(results.every(r => r.length === 1)).toBe(true)
+    }
+    finally {
+      await his.close()
+    }
+  })
+
+  it('times out slow responses and does not cache the failure', async () => {
+    let slow = true
+    const his = await fakeHis(() => ({ body: soap({ code: 0, data: DEPTS }), delayMs: slow ? 400 : 0 }))
+    try {
+      const { listDepartments } = await load({ HIS_MODE: 'soap', HIS_URL: his.url, HIS_TIMEOUT_MS: '100' })
+      await expect(listDepartments()).rejects.toThrow('HIS 请求超时(100ms)')
+      slow = false
+      expect(await listDepartments()).toHaveLength(3) // 失败没进缓存,马上重试成功
+      expect(his.requests).toHaveLength(2)
+    }
+    finally {
+      await his.close()
+    }
+  })
+
+  it.each([
+    ['HTTP 500', { status: 500, body: 'Internal Server Error' }, /HTTP 500/],
+    ['no SampleResult', { body: '<soap:Fault>JHIPLIB busy</soap:Fault>' }, /没有 SampleResult/],
+    ['HTML inside SampleResult', { body: '<SampleResult>&lt;html&gt;502&lt;/html&gt;</SampleResult>' }, /返回的不是 JSON/],
+    ['business error code', { body: soap({ code: 401, msg: '认证失败' }) }, /code=401.*认证失败/],
+  ] as const)('reports %s clearly', async (_, reply, message) => {
+    const his = await fakeHis(() => reply)
+    try {
+      const { listUsers } = await load({ HIS_MODE: 'soap', HIS_URL: his.url })
+      await expect(listUsers()).rejects.toThrow(message)
+    }
+    finally {
+      await his.close()
+    }
+  })
+
+  it('treats null data as empty and trims the keyword', async () => {
+    const his = await fakeHis(path => ({ body: soap({ code: 0, data: path.includes('JH3012') ? null : [{ RYID: 'a', XM: '张三', GH: 'G1', RYLB: '01', SFYX: '1' }] }) }))
+    try {
+      const { searchDepartments, searchDoctors } = await load({ HIS_MODE: 'soap', HIS_URL: his.url })
+      expect(await searchDepartments('美容')).toEqual([])
+      expect((await searchDoctors('  张  ')).map(u => u.XM)).toEqual(['张三'])
+      expect(await searchDoctors('不存在的人')).toEqual([])
+    }
+    finally {
+      await his.close()
+    }
+  })
+
+  it('says it cannot connect when nothing listens', async () => {
+    const his = await fakeHis(() => ({ body: '' }))
+    await his.close()
+    const { listDepartments } = await load({ HIS_MODE: 'soap', HIS_URL: his.url })
+    await expect(listDepartments()).rejects.toThrow(/HIS 连不上/)
+  })
+
+  it('rest: surfaces a login failure and logs in again after the token expires', async () => {
+    let password = 'wrong'
+    const his = await fakeHis((path, _, body) => path === '/login'
+      ? { type: 'application/json', body: JSON.stringify((JSON.parse(body) as { password: string }).password === password ? { code: 0, data: { token: `t${Date.now()}` } } : { code: 1, msg: '密码无效！' }) }
+      : { type: 'application/json', body: JSON.stringify({ code: 0, data: [] }) })
+    try {
+      const failing = await load({ HIS_MODE: 'rest', HIS_URL: his.url, HIS_PASSWORD: 'x' })
+      await expect(failing.listUsers()).rejects.toThrow(/登录失败.*密码无效/)
+
+      password = 'x'
+      vi.useFakeTimers({ toFake: ['Date'] })
+      const { listUsers } = await load({ HIS_MODE: 'rest', HIS_URL: his.url, HIS_PASSWORD: 'x' })
+      await listUsers()
+      vi.setSystemTime(Date.now() + 61 * 60 * 1000) // token 1 小时、缓存 10 分钟都过期
+      await listUsers()
+      expect(his.requests.map(r => r.path)).toEqual(['/login', '/login', '/master/listUsers', '/login', '/master/listUsers'])
+    }
+    finally {
+      vi.useRealTimers()
+      await his.close()
+    }
+  })
+
+  it('mock: random delay stays within range, failures and timeouts surface', async () => {
+    const ok = await load({ HIS_MODE: 'mock', HIS_MOCK_DELAY_MS: '20-60' })
+    const started = Date.now()
+    await ok.listDepartments()
+    expect(Date.now() - started).toBeGreaterThanOrEqual(19)
+
+    const failing = await load({ HIS_MODE: 'mock', HIS_MOCK_FAIL_RATE: '1' })
+    await expect(failing.listUsers()).rejects.toThrow(/mock 随机失败/)
+
+    const slow = await load({ HIS_MODE: 'mock', HIS_MOCK_DELAY_MS: '500-800', HIS_TIMEOUT_MS: '50' })
+    await expect(slow.listUsers()).rejects.toThrow('HIS 请求超时(50ms)')
   })
 })

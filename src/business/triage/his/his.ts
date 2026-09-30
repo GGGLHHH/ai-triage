@@ -6,7 +6,9 @@ import { MOCK_HIS } from './mock.ts'
 // 南山实际走 JHIPLIB SOAP 服务总线(同 sznsrmyy-integration 的 SznsrmyyZkhisApiImpl)。HIS 只在院内网可达。
 //   HIS_MODE=soap  HIS_URL=http://10.241.129.19/soap/JHIPLIB.SOAP.BS.Streambus.cls  (无鉴权,靠内网)
 //   HIS_MODE=rest  HIS_URL=<集成服务根地址> HIS_USERNAME / HIS_PASSWORD             (文档的 /login + /master/*)
-//   HIS_MODE=mock  本地假数据,内网不通时开发用
+//   HIS_MODE=mock  本地假数据,内网不通时开发用;HIS_MOCK_DELAY_MS=200-3000 随机延迟、HIS_MOCK_FAIL_RATE=0.2 随机失败,
+//                  模拟院内网慢和抖动(mock 同样走缓存 / 超时 / 错误处理)
+//   HIS_TIMEOUT_MS 单次请求超时,默认 15000
 //   不设 HIS_MODE = 不接 HIS,AI 也不注册 HIS 工具
 
 export type HisMode = 'soap' | 'rest' | 'mock'
@@ -54,7 +56,7 @@ function hisUrl(): string {
   return url
 }
 
-const TIMEOUT_MS = 15_000
+const timeoutMs = () => Number(process.env.HIS_TIMEOUT_MS ?? 15_000)
 
 // SOAP 信封与 SznsrmyyZkhisApiImpl 一致:JSON 参数放进 <tem:msgbody> 的 CDATA,结果在 <SampleResult> 里
 export function soapEnvelope(json: string): string {
@@ -73,7 +75,13 @@ export function sampleResult(xml: string): string {
 
 // 统一返回 { code, msg, data }:code 0 成功(文档「数据交互规范」)
 function unwrap<T>(json: string, op: Op): T[] {
-  const message = JSON.parse(json) as { code?: number, msg?: string, data?: T[] | null }
+  let message: { code?: number, msg?: string, data?: T[] | null }
+  try {
+    message = JSON.parse(json) as typeof message
+  }
+  catch {
+    throw new Error(`HIS ${op} 返回的不是 JSON:${json.slice(0, 200)}`)
+  }
   if (message.code !== undefined && message.code !== 0) {
     throw new Error(`HIS ${op} 返回失败 code=${message.code}:${message.msg ?? ''}`)
   }
@@ -81,7 +89,9 @@ function unwrap<T>(json: string, op: Op): T[] {
 }
 
 async function post(url: string, init: { headers: Record<string, string>, body: string }): Promise<string> {
-  const response = await fetch(url, { method: 'POST', ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+  const response = await fetch(url, { method: 'POST', ...init, signal: AbortSignal.timeout(timeoutMs()) }).catch((error: unknown) => {
+    throw new Error(error instanceof DOMException && error.name === 'TimeoutError' ? `HIS 请求超时(${timeoutMs()}ms)` : `HIS 连不上:${error instanceof Error ? error.message : String(error)}`)
+  })
   if (!response.ok) {
     throw new Error(`HIS 返回 HTTP ${response.status}:${(await response.text()).slice(0, 200)}`)
   }
@@ -116,6 +126,21 @@ async function restToken(): Promise<string> {
   return token.value
 }
 
+// mock 也按真实请求的样子走:随机延迟、随机失败、受同一个超时约束,返回和 HIS 一样的 { code, data } JSON
+async function callMock(op: Op): Promise<string> {
+  const [min = 0, max = min] = (process.env.HIS_MOCK_DELAY_MS ?? '0').split('-').map(Number)
+  const delay = min + Math.random() * (max - min)
+  if (delay > timeoutMs()) {
+    await new Promise(resolve => setTimeout(resolve, timeoutMs()))
+    throw new Error(`HIS 请求超时(${timeoutMs()}ms)`)
+  }
+  await new Promise(resolve => setTimeout(resolve, delay))
+  if (Math.random() < Number(process.env.HIS_MOCK_FAIL_RATE ?? 0)) {
+    throw new Error('HIS 返回 HTTP 503:mock 随机失败')
+  }
+  return JSON.stringify({ code: 0, data: MOCK_HIS[op] })
+}
+
 async function callRest(op: Op, params: object): Promise<string> {
   return post(`${hisUrl()}${OPS[op].rest}`, {
     headers: { 'Content-Type': 'application/json', 'Authorization': await restToken() },
@@ -132,15 +157,13 @@ async function call<T>(op: Op, params: object = {}): Promise<T[]> {
   if (mode === undefined) {
     throw new Error('未配置 HIS_MODE')
   }
-  if (mode === 'mock') {
-    return MOCK_HIS[op] as T[]
-  }
   const key = `${op}:${JSON.stringify(params)}`
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < CACHE_MS) {
     return hit.rows as Promise<T[]>
   }
-  const rows = (mode === 'soap' ? callSoap(op, params) : callRest(op, params)).then(json => unwrap<T>(json, op))
+  const transport = mode === 'soap' ? callSoap(op, params) : mode === 'rest' ? callRest(op, params) : callMock(op)
+  const rows = transport.then(json => unwrap<T>(json, op))
   cache.set(key, { at: Date.now(), rows })
   rows.catch(() => cache.delete(key)) // 失败不缓存
   return rows

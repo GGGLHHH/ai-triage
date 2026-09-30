@@ -19,7 +19,11 @@ async function searchKnowledgeTool({ query }: { query: string }) {
 
 // HIS 不可达(内网不通、超时)同样不抛,把原因交给模型;结果截断,别把整院名单塞进上下文
 const HIS_LIMIT = 20
-const hisError = (error: unknown) => `HIS 暂不可用:${error instanceof Error ? error.message : String(error)}`
+// 细节(超时、HTTP 503…)只进服务端日志:原样给模型,它会照搬给患者
+function hisError(error: unknown): string {
+  console.error('[his]', error instanceof Error ? error.message : error)
+  return '院内系统暂时查不到,请稍后再试'
+}
 
 async function hisDepartmentsTool({ keyword }: { keyword: string }) {
   try {
