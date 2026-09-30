@@ -37,7 +37,7 @@ echo "==> 导出知识库(开发向量库 → SQL,可重复导入)"
 } > "${STAGE}/kb-init.sql"
 grep -q '^COPY public.kb_chunks' "${STAGE}/kb-init.sql" || { echo "知识库导出为空:先 pnpm kb:up && pnpm kb:ingest"; exit 1; }
 
-cp deploy/compose.prod.yml deploy/nginx.conf deploy/deploy.sh deploy/.env.example "${STAGE}/"
+cp deploy/compose.prod.yml deploy/nginx.conf deploy/deploy.sh deploy/.env.example deploy/README.md "${STAGE}/"
 echo "${VERSION}" > "${STAGE}/VERSION"
 
 OUT="dist/ai-triage-deploy-${VERSION}-${PLATFORM##*/}.tar.gz"
