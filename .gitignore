@@ -11,3 +11,6 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# pnpm kb:export 的产物(含向量,按需带去服务器,不进库)
+kb-dump.json

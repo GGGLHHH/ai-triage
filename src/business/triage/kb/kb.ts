@@ -9,7 +9,7 @@ import postgres from 'postgres'
 // (与 ai-server 生产同款模型)。换本地模型(ollama / TEI)只需改 KB_EMBED_URL / KB_EMBED_MODEL。
 const DB_URL = process.env.KB_DATABASE_URL ?? 'postgres://kb:kb@127.0.0.1:5493/kb'
 const EMBED_URL = process.env.KB_EMBED_URL ?? 'https://api.siliconflow.cn/v1'
-const EMBED_MODEL = process.env.KB_EMBED_MODEL ?? 'BAAI/bge-m3'
+export const EMBED_MODEL = process.env.KB_EMBED_MODEL ?? 'BAAI/bge-m3'
 const EMBED_BATCH = 16 // 单次请求的条数上限,留足余量
 const DIMENSIONS = 1024 // bge-m3
 
@@ -73,6 +73,16 @@ export async function replaceKnowledge(chunks: Chunk[], embeddings: number[][]):
         values (${chunk.source}, ${chunk.doc}, ${chunk.section}, ${chunk.title}, ${chunk.content}, ${vector(embeddings[i] ?? [])}::vector)`
     }
   })
+}
+
+// 整库读出(文字 + 向量),给 scripts/kb-export.ts 打包带去服务器,免得那边重新向量化
+export async function exportKnowledge(): Promise<{ chunks: Chunk[], embeddings: number[][] }> {
+  const rows = await sql()<(Chunk & { embedding: string })[]>`
+    select source, doc, section, title, content, embedding::text as embedding from kb_chunks order by id`
+  return {
+    chunks: rows.map(({ embedding: _, ...chunk }) => chunk),
+    embeddings: rows.map(row => JSON.parse(row.embedding) as number[]), // vector 的文本形式 [1,2,…] 就是 JSON 数组
+  }
 }
 
 // 低于它的结果不交给模型:实测命中时 top1 ≥ 0.61,无关问题(膝盖疼、资料里没有的双眼皮)全在 0.51 以下。

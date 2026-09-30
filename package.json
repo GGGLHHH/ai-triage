@@ -17,9 +17,12 @@
     "tsc": "tsc --noEmit",
     "check": "pnpm run fix && pnpm run tsc && pnpm run test",
     "test": "vitest run",
-    "kb:up": "docker compose up -d --wait",
+    "kb:up": "docker compose -f compose.dev.yml up -d --wait",
     "kb:ingest": "node --env-file-if-exists=.env scripts/kb-ingest.ts",
-    "kb:down": "docker compose stop"
+    "kb:export": "node --env-file-if-exists=.env scripts/kb-export.ts",
+    "kb:import": "node --env-file-if-exists=.env scripts/kb-import.ts",
+    "kb:down": "docker compose -f compose.dev.yml stop",
+    "package": "bash scripts/package.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
