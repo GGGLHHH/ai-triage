@@ -68,7 +68,7 @@ const ack = async () => ({ ok: true })
 export const triageTools = [
   toolDefinition({
     name: TOOL.knowledge,
-    description: '检索医疗美容科知识库:就诊须知、常见问题、诊疗项目、术后护理',
+    description: '检索医疗美容科知识库:医院信息与来院路线、就诊须知、常见问题、诊疗项目、治疗项目介绍(原理、疗程、注意事项)、皮肤问题科普、术后护理',
     inputSchema: z.object({
       query: z.string().describe('要查的问题'),
     }),
